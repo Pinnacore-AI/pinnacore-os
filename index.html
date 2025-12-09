@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0e27">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>PINNACORE OS</title>
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding-bottom: 80px;
+            overflow-x: hidden;
+        }
+        .header {
+            position: sticky;
+            top: 0;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+            z-index: 100;
+        }
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+        .balance-card {
+            margin: 20px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.1), rgba(0, 212, 255, 0.1));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 20px;
+            text-align: center;
+        }
+        .balance-amount {
+            font-size: 3rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'Courier New', monospace;
+        }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+        .action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .action-btn:active { transform: scale(0.95); }
+        .action-icon { font-size: 2rem; margin-bottom: 8px; }
+        .action-label { font-size: 0.75rem; color: #a0aec0; }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(10, 14, 39, 0.98);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0, 212, 255, 0.1);
+            padding: 10px 0;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            z-index: 100;
+        }
+        .nav-item {
+            text-align: center;
+            padding: 8px;
+            color: #a0aec0;
+            cursor: pointer;
+        }
+        .nav-item.active { color: #00d4ff; }
+        .nav-icon { font-size: 1.5rem; margin-bottom: 4px; }
+        .nav-label { font-size: 0.7rem; }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: linear-gradient(135deg, #0a0e27, #1a1f3a);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-close {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            clear: both;
+        }
+        
+        /* Chat */
+        .chat-container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .chat-messages {
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 80%;
+        }
+        .message.user {
+            background: linear-gradient(135deg, rgba(0, 102, 255, 0.2), rgba(0, 212, 255, 0.2));
+            margin-left: auto;
+        }
+        .message.ai {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            color: white;
+            font-size: 1rem;
+        }
+        .chat-input button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #00d4ff, #0066ff);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        
+        /* Stats */
+        .stat-card {
+            margin: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+        .stat-title {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            margin-bottom: 10px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">PINNACORE OS</div>
+        <div onclick="showNotifications()">🔔</div>
+    </header>
+    
+    <!-- Home Page -->
+    <div id="homePage" class="page active">
+        <div class="balance-card">
+            <div style="font-size: 0.9rem; color: #a0aec0; margin-bottom: 10px;">AJT TOKEN BALANCE</div>
+            <div class="balance-amount" id="balance">1,254,098.55</div>
+            <div style="font-size: 1.2rem; color: #a0aec0; margin-top: 10px;">≈ $12,540.99 USD</div>
+            <div style="margin-top: 15px; padding: 10px 20px; background: rgba(0, 255, 136, 0.1); border-radius: 50px; display: inline-block;">
+                <span style="color: #00ff88; font-weight: 700;">+2.5 AJT/hour</span> • Earning Active
+            </div>
+        </div>
+        
+        <div class="quick-actions">
+            <div class="action-btn" onclick="openChat()">
+                <div class="action-icon">🧠</div>
+                <div class="action-label">ThoughtMate</div>
+            </div>
+            <div class="action-btn" onclick="showModal('vault')">
+                <div class="action-icon">🔒</div>
+                <div class="action-label">Vault</div>
+            </div>
+            <div class="action-btn" onclick="showModal('turvatalk')">
+                <div class="action-icon">💬</div>
+                <div class="action-label">TurvaTalk</div>
+            </div>
+            <div class="action-btn" id="walletBtn" onclick="connectWallet()">
+                <div class="action-icon">💳</div>
+                <div class="action-label">Connect</div>
+            </div>
+        </div>
+        
+        <div style="padding: 20px;">
+            <h2 style="font-size: 1.3rem; margin-bottom: 15px;">Explore PINNACORE OS</h2>
+            <div class="stat-card" onclick="showModal('story')">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 1.1rem; font-weight: 700;">📖 Our Story</div>
+                        <div style="font-size: 0.85rem; color: #a0aec0; margin-top: 5px;">Learn about PINNACORE OS journey</div>
+                    </div>
+                    <div style="font-size: 1.5rem; color: #a0aec0;">›</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats Page -->
+    <div id="statsPage" class="page">
+        <div style="padding: 20px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">Statistics</h2>
+            <div class="stat-card">
+                <div class="stat-title">Total Earned</div>
+                <div class="stat-value">1,254,098.55 AJT</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Earning Rate</div>
+                <div class="stat-value">+2.5 AJT/hour</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Active Time</div>
+                <div class="stat-value">247 hours</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Network Nodes</div>
+                <div class="stat-value">10,247</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Earn Page -->
+    <div id="earnPage" class="page">
+        <div style="padding: 20px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">DePIN Earning</h2>
+            <div class="stat-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="font-size: 1.1rem; font-weight: 700;">Status</div>
+                    <div style="width: 60px; height: 32px; background: linear-gradient(135deg, #00ff88, #00d4ff); border-radius: 50px; position: relative; cursor: pointer;" id="earningToggle">
+                        <div style="width: 26px; height: 26px; background: white; border-radius: 50%; position: absolute; top: 3px; right: 3px;"></div>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px;">
+                    <div style="text-align: center;">
+                        <div class="stat-value" style="font-size: 1.3rem;">94%</div>
+                        <div class="stat-title">CPU Usage</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="stat-value" style="font-size: 1.3rem;">2.5h</div>
+                        <div class="stat-title">Uptime</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="stat-value" style="font-size: 1.3rem;">12</div>
+                        <div class="stat-title">Tasks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Network Page -->
+    <div id="networkPage" class="page">
+        <div style="padding: 20px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">DePIN Network</h2>
+            <div class="stat-card">
+                <div class="stat-title">Global Nodes</div>
+                <div class="stat-value">10,247</div>
+                <div style="margin-top: 10px; color: #a0aec0;">Join thousands of nodes worldwide sharing computing power</div>
+            </div>
+            <div class="stat-card">
+                <canvas id="networkMap" width="400" height="300" style="width:100%;max-width:400px;height:auto;"></canvas>
+            </div>
+            <div class="stat-card">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+                    <div>
+                        <div class="stat-value" style="font-size:1.3rem;">🇫🇮 247</div>
+                        <div class="stat-title">Finland</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" style="font-size:1.3rem;">🇺🇸 3,421</div>
+                        <div class="stat-title">USA</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" style="font-size:1.3rem;">🇪🇺 2,156</div>
+                        <div class="stat-title">Europe</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" style="font-size:1.3rem;">🌏 4,423</div>
+                        <div class="stat-title">Asia</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Page -->
+    <div id="settingsPage" class="page">
+        <div style="padding: 20px;">
+            <h2 style="font-size: 1.5rem; margin-bottom: 20px;">Settings</h2>
+            <div class="stat-card" onclick="showModal('profile')">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>👤 Profile</div>
+                    <div>›</div>
+                </div>
+            </div>
+            <div class="stat-card" onclick="showModal('notifications')">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>🔔 Notifications</div>
+                    <div>›</div>
+                </div>
+            </div>
+            <div class="stat-card" onclick="showModal('about')">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>ℹ️ About</div>
+                    <div>›</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchPage('home')">
+            <div class="nav-icon">🏠</div>
+            <div class="nav-label">Home</div>
+        </div>
+        <div class="nav-item" onclick="switchPage('stats')">
+            <div class="nav-icon">📊</div>
+            <div class="nav-label">Stats</div>
+        </div>
+        <div class="nav-item" onclick="switchPage('earn')">
+            <div class="nav-icon">💰</div>
+            <div class="nav-label">Earn</div>
+        </div>
+        <div class="nav-item" onclick="switchPage('network')">
+            <div class="nav-icon">🔗</div>
+            <div class="nav-label">Network</div>
+        </div>
+        <div class="nav-item" onclick="switchPage('settings')">
+            <div class="nav-icon">⚙️</div>
+            <div class="nav-label">Settings</div>
+        </div>
+    </nav>
+    
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">×</span>
+            <h2 class="modal-title" id="modalTitle">Title</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Balance animation
+        let balance = 1254098.55;
+        setInterval(() => {
+            balance += Math.random() * 0.01;
+            document.getElementById('balance').textContent = balance.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }, 3000);
+        
+        // Page switching
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(page + 'Page').classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+        
+        // Wallet connection with Reown support
+        let walletConnected = false;
+        let walletAddress = null;
+        
+        async function connectWallet() {
+            try {
+                // Try Phantom first
+                if (window.solana && window.solana.isPhantom) {
+                    const resp = await window.solana.connect();
+                    walletAddress = resp.publicKey.toString();
+                    handleWalletConnected(walletAddress);
+                } else if (window.solana) {
+                    // Try generic Solana wallet
+                    const resp = await window.solana.connect();
+                    walletAddress = resp.publicKey.toString();
+                    handleWalletConnected(walletAddress);
+                } else {
+                    // Show wallet options
+                    showModal('wallet');
+                }
+            } catch (error) {
+                console.error('Wallet connection error:', error);
+                showNotification('Connection failed', 'error');
+            }
+        }
+        
+        function handleWalletConnected(address) {
+            walletConnected = true;
+            walletAddress = address;
+            const short = address.slice(0, 4) + '...' + address.slice(-4);
+            document.getElementById('walletBtn').innerHTML = '<div class="action-icon">✓</div><div class="action-label">' + short + '</div>';
+            document.getElementById('walletBtn').onclick = disconnectWallet;
+            showNotification('Wallet connected: ' + short, 'success');
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', address);
+        }
+        
+        async function disconnectWallet() {
+            try {
+                if (window.solana) {
+                    await window.solana.disconnect();
+                }
+                walletConnected = false;
+                walletAddress = null;
+                document.getElementById('walletBtn').innerHTML = '<div class="action-icon">💳</div><div class="action-label">Connect</div>';
+                document.getElementById('walletBtn').onclick = connectWallet;
+                showNotification('Wallet disconnected', 'info');
+                localStorage.removeItem('walletConnected');
+                localStorage.removeItem('walletAddress');
+            } catch (error) {
+                console.error('Disconnect error:', error);
+            }
+        }
+        
+        // Auto-reconnect on page load
+        window.addEventListener('load', () => {
+            const wasConnected = localStorage.getItem('walletConnected');
+            const savedAddress = localStorage.getItem('walletAddress');
+            if (wasConnected === 'true' && savedAddress && window.solana) {
+                window.solana.connect({ onlyIfTrusted: true })
+                    .then(resp => handleWalletConnected(resp.publicKey.toString()))
+                    .catch(() => {});
+            }
+        });
+        
+        // Chat
+        function openChat() {
+            showModal('chat');
+        }
+        
+        // Modal system
+        const modalContent = {
+            vault: {
+                title: '🔒 TurvaVault',
+                body: '<p>160TB of secure storage. Your data, your control. Zero-knowledge architecture ensures complete privacy.</p><p style="margin-top:15px;color:#a0aec0;">Coming soon...</p>'
+            },
+            turvatalk: {
+                title: '💬 TurvaTalk',
+                body: '<p>End-to-end encrypted messaging. Privacy is a fundamental right.</p><p style="margin-top:15px;color:#a0aec0;">Coming soon...</p>'
+            },
+            wallet: {
+                title: '💳 Connect Wallet',
+                body: '<div style="text-align:center;"><p style="margin-bottom:20px;">Choose your wallet provider:</p><div style="display:grid;gap:15px;"><a href="https://phantom.app" target="_blank" style="display:block;padding:15px;background:rgba(138,73,255,0.2);border:1px solid rgba(138,73,255,0.5);border-radius:15px;color:white;text-decoration:none;font-weight:700;">🟣 Phantom Wallet</a><a href="https://solflare.com" target="_blank" style="display:block;padding:15px;background:rgba(252,163,30,0.2);border:1px solid rgba(252,163,30,0.5);border-radius:15px;color:white;text-decoration:none;font-weight:700;">🟠 Solflare</a><a href="https://trustwallet.com" target="_blank" style="display:block;padding:15px;background:rgba(62,133,255,0.2);border:1px solid rgba(62,133,255,0.5);border-radius:15px;color:white;text-decoration:none;font-weight:700;">🔵 Trust Wallet</a><div style="padding:15px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:15px;"><div style="font-weight:700;margin-bottom:10px;">🌐 Reown AppKit</div><div style="font-size:0.85rem;color:#a0aec0;">Supports 700+ wallets including Ledger, MetaMask, and more</div><div style="margin-top:10px;font-size:0.75rem;color:#00d4ff;">Coming soon...</div></div></div></div>'
+            },
+            chat: {
+                title: '🧠 ThoughtMate',
+                body: '<div class="chat-container"><div class="chat-messages" id="chatMessages"></div><div class="chat-input"><input type="text" id="chatInput" placeholder="Ask anything..."><button onclick="sendMessage()">Send</button></div></div>'
+            },
+            story: {
+                title: '📖 Our Story',
+                body: '<p>Hundreds of sleepless nights. Scattered projects, endless lines of code.</p><p style="margin-top:15px;">ThoughtMate was born from the need for true decision intelligence.</p><p style="margin-top:15px;">AgentArmy was created to eliminate time-consuming routines.</p><p style="margin-top:15px;">TurvaVault emerged because my data belongs to me.</p><p style="margin-top:15px;">TurvaTalk exists because privacy is a fundamental right.</p><p style="margin-top:15px;">For years, these lived separately. Until one night, everything clicked.</p><p style="margin-top:15px;"><strong>I realized: these are not apps. They are layers. And layers form an ecosystem.</strong></p><p style="margin-top:15px;">An ecosystem becomes a living organism.</p><p style="margin-top:15px;">Unified into one architecture: <strong>PINNACORE OS</strong>.</p><p style="margin-top:20px;font-size:1.2rem;color:#00d4ff;font-weight:700;">Secure the Future. Build the Core.</p>'
+            },
+            about: {
+                title: 'ℹ️ About PINNACORE OS',
+                body: '<p><strong>Version:</strong> 1.0.0</p><p style="margin-top:10px;"><strong>Project ID:</strong> 3b5d8102e29be880fbcbd10db6e07726</p><p style="margin-top:15px;color:#a0aec0;">Built in Lahti, Finland 🇫🇮</p>'
+            }
+        };
+        
+        function showModal(type) {
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+            const content = modalContent[type];
+            if (content) {
+                title.textContent = content.title;
+                body.innerHTML = content.body;
+                modal.classList.add('active');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+        
+        function showNotification(message, type) {
+            const notif = document.createElement('div');
+            notif.textContent = message;
+            notif.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:' + (type === 'success' ? 'rgba(0,255,136,0.2)' : 'rgba(255,0,0,0.2)') + ';border:1px solid ' + (type === 'success' ? '#00ff88' : '#ff0000') + ';color:white;padding:15px 25px;border-radius:50px;z-index:10000;';
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+        
+        // Draw network map
+        function drawNetworkMap() {
+            const canvas = document.getElementById('networkMap');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.5)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw nodes
+            const nodes = [
+                {x: 100, y: 80, size: 15, label: 'FI'},
+                {x: 180, y: 60, size: 12, label: 'SE'},
+                {x: 220, y: 90, size: 18, label: 'DE'},
+                {x: 80, y: 150, size: 25, label: 'US'},
+                {x: 300, y: 120, size: 20, label: 'CN'},
+                {x: 350, y: 180, size: 16, label: 'JP'},
+                {x: 150, y: 200, size: 14, label: 'BR'},
+                {x: 280, y: 250, size: 13, label: 'AU'}
+            ];
+            
+            // Draw connections
+            ctx.strokeStyle = 'rgba(0, 212, 255, 0.2)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw nodes
+            nodes.forEach(node => {
+                // Glow effect
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00d4ff';
+                
+                // Node circle
+                ctx.fillStyle = 'rgba(0, 212, 255, 0.3)';
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Reset shadow
+                ctx.shadowBlur = 0;
+                
+                // Label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(node.label, node.x, node.y + node.size + 12);
+            });
+        }
+        
+        // Initialize network map when switching to network page
+        const originalSwitchPage = switchPage;
+        switchPage = function(page) {
+            originalSwitchPage(page);
+            if (page === 'network') {
+                setTimeout(drawNetworkMap, 100);
+            }
+        };
+        
+        // Simple AI chat
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const messages = document.getElementById('chatMessages');
+            if (!input.value.trim()) return;
+            
+            messages.innerHTML += '<div class="message user">' + input.value + '</div>';
+            const userMsg = input.value;
+            input.value = '';
+            
+            setTimeout(() => {
+                messages.innerHTML += '<div class="message ai">I\'m ThoughtMate, your AI decision assistant. This is a demo - full AI integration coming soon!</div>';
+                messages.scrollTop = messages.scrollHeight;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
